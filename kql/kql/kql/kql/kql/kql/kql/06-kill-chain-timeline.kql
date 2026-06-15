@@ -1,0 +1,28 @@
+// Kill-Chain Timeline — all four techniques in one query
+// Stitches separate attack events into a single chronological story
+// Roast credentials → move laterally → dump the directory
+// This is the analyst deliverable — turns scattered alerts into a narrative
+
+SecurityEvent
+| where TimeGenerated > ago(8h)
+| where Computer has "dc01"
+| where EventID in (4769, 4768, 4662)
+| extend TargetUserName = extract('<Data Name="TargetUserName">([^<]+)</Data>', 1, EventData)
+| extend ServiceName = extract('<Data Name="ServiceName">([^<]+)</Data>', 1, EventData)
+| extend PreAuthType = extract('<Data Name="PreAuthType">([^<]+)</Data>', 1, EventData)
+| extend IpAddress = extract('<Data Name="IpAddress">([^<]+)</Data>', 1, EventData)
+| extend Technique = case(
+    EventID == 4769 and ServiceName has "svc-sql", "1 - Kerberoasting",
+    EventID == 4768 and TargetUserName has "svc-legacy", "2 - AS-REP Roasting",
+    EventID == 4662 and Account has "labadmin", "3 - DCSync",
+    "Other"
+)
+| where Technique != "Other"
+| extend Evidence = case(
+    Technique == "1 - Kerberoasting", strcat("Service ticket requested for ", ServiceName),
+    Technique == "2 - AS-REP Roasting", strcat("PreAuthType=", PreAuthType, " for ", TargetUserName),
+    Technique == "3 - DCSync", "Directory Service Access by LAB\\labadmin",
+    "Review"
+)
+| project TimeGenerated, Technique, EventID, Evidence, Account, TargetUserName, ServiceName, SourceIP = IpAddress
+| sort by TimeGenerated asc
