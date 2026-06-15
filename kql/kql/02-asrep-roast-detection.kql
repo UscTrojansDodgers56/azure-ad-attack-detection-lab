@@ -1,0 +1,16 @@
+// AS-REP Roasting Detection — T1558.004
+// Flags TGT requests where Kerberos pre-authentication is disabled
+// Event ID 4768 — A Kerberos authentication ticket was requested
+// PreAuthType 0 = no pre-authentication required — the key tell
+
+SecurityEvent
+| where TimeGenerated > ago(4h)
+| where Computer has "dc01"
+| where EventID == 4768
+| extend TargetUserName = extract('<Data Name="TargetUserName">([^<]+)</Data>', 1, EventData)
+| extend IpAddress = extract('<Data Name="IpAddress">([^<]+)</Data>', 1, EventData)
+| extend PreAuthType = extract('<Data Name="PreAuthType">([^<]+)</Data>', 1, EventData)
+| extend TicketEncryptionType = extract('<Data Name="TicketEncryptionType">([^<]+)</Data>', 1, EventData)
+| where TargetUserName has "svc-legacy" or EventData has "svc-legacy"
+| project TimeGenerated, Computer, EventID, TargetUserName, PreAuthType, TicketEncryptionType, IpAddress, Activity
+| sort by TimeGenerated desc
