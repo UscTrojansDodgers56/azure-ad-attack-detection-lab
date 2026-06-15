@@ -1,0 +1,17 @@
+// Pass-the-Hash Detection — T1550.002
+// Flags NTLM type-9 (NewCredentials) logons — the local PtH artifact
+// Event ID 4624 — An account was successfully logged on
+// NOTE: This is a best-effort hunting query — log-only PtH detection is behavioral
+// and noisy. Type 9 + NTLM is the cleanest signal without Sysmon.
+// Treat as a starting point for investigation, not a high-fidelity alert.
+
+SecurityEvent
+| where TimeGenerated > ago(4h)
+| where EventID == 4624
+| where LogonType in (9, 3)
+| where AuthenticationPackageName == "NTLM"
+| where TargetUserName !endswith "$"
+| where TargetUserName != "ANONYMOUS LOGON"
+| summarize LogonCount = count(), Hosts = make_set(Computer)
+    by TargetUserName, LogonType, bin(TimeGenerated, 1h)
+| sort by LogonCount desc
