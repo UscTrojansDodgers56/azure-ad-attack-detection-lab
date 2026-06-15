@@ -1,0 +1,16 @@
+// DCSync Detection — T1003.006
+// Flags directory replication from non-DC accounts
+// Event ID 4662 — An operation was performed on an object
+// Only domain controllers should ever replicate — a non-DC doing it is a red flag
+
+SecurityEvent
+| where TimeGenerated > ago(8h)
+| where Computer has "dc01"
+| where EventID == 4662
+| where Account has "labadmin"
+| extend ObjectName = extract('<Data Name="ObjectName">([^<]+)</Data>', 1, EventData)
+| extend ObjectType = extract('<Data Name="ObjectType">([^<]+)</Data>', 1, EventData)
+| extend AccessMask = extract('<Data Name="AccessMask">([^<]+)</Data>', 1, EventData)
+| extend Properties = extract('<Data Name="Properties">([^<]+)</Data>', 1, EventData)
+| project TimeGenerated, Computer, EventID, Account, ObjectName, ObjectType, AccessMask, Properties, Activity
+| sort by TimeGenerated desc
