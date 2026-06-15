@@ -1,0 +1,23 @@
+// Triage — Did the attack actually succeed?
+// Surfaces successful outcomes across all four techniques
+// Detection says someone tried — triage says it worked
+// Key distinction: attempt vs confirmed success
+
+SecurityEvent
+| where TimeGenerated > ago(8h)
+| where Computer has "dc01"
+| where EventID in (4769, 4768, 4662)
+| extend Technique = case(
+    EventID == 4769, "Kerberoasting evidence",
+    EventID == 4768, "AS-REP Roasting evidence",
+    EventID == 4662, "DCSync evidence",
+    "Other"
+)
+| summarize
+    EventCount = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    SampleAccount = any(Account),
+    SampleActivity = any(Activity)
+    by Technique, EventID
+| sort by EventID asc
