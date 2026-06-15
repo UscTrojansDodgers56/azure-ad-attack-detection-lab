@@ -1,0 +1,16 @@
+// Kerberoasting Detection — T1558.003
+// Flags RC4 service ticket requests for user service accounts
+// Event ID 4769 — A Kerberos service ticket was requested
+
+let LookbackWindow = 4h;
+SecurityEvent
+| where TimeGenerated > ago(LookbackWindow)
+| where Computer has "dc01"
+| where EventID == 4769
+| extend TargetUserName = extract('<Data Name="TargetUserName">([^<]+)</Data>', 1, EventData)
+| extend ServiceName = extract('<Data Name="ServiceName">([^<]+)</Data>', 1, EventData)
+| extend TicketEncryptionType = extract('<Data Name="TicketEncryptionType">([^<]+)</Data>', 1, EventData)
+| extend IpAddress = extract('<Data Name="IpAddress">([^<]+)</Data>', 1, EventData)
+| where ServiceName has "svc-sql"
+| project TimeGenerated, Computer, EventID, TargetUserName, ServiceName, TicketEncryptionType, IpAddress, Activity
+| sort by TimeGenerated desc
